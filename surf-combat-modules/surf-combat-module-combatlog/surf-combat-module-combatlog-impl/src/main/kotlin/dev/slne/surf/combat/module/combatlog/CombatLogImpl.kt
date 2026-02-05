@@ -1,10 +1,14 @@
 package dev.slne.surf.combat.module.combatlog
 
+import com.github.shynixn.mccoroutine.folia.ticks
+import dev.slne.surf.combat.api.CombatInstance
 import dev.slne.surf.combat.api.user.CombatUser
 import dev.slne.surf.combat.module.combatlog.ModuleCombatLog.COMBAT_TIME
 import dev.slne.surf.surfapi.core.api.util.freeze
 import dev.slne.surf.surfapi.core.api.util.mutableObject2ObjectMapOf
 import dev.slne.surf.surfapi.core.api.util.mutableObjectListOf
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.bukkit.Bukkit
 import org.bukkit.Material
 import org.bukkit.entity.EntityType
@@ -46,32 +50,42 @@ class CombatLogImpl(
             return
         }
 
-        val location = player.location
+        CombatInstance.launch {
+            val location = player.location
 
-        val armorContents = player.inventory.armorContents
-        val storageContents = player.inventory.storageContents
-        val extraContents = player.inventory.extraContents
+            val armorContents = player.inventory.armorContents
+            val storageContents = player.inventory.storageContents
+            val extraContents = player.inventory.extraContents
 
-        val contents = mutableObjectListOf<ItemStack>().apply {
-            addAll(armorContents.filterNotNull().filterNot { it.type == Material.AIR })
-            addAll(storageContents.filterNotNull().filterNot { it.type == Material.AIR })
-            addAll(extraContents.filterNotNull().filterNot { it.type == Material.AIR })
-        }
+            val contents = mutableObjectListOf<ItemStack>().apply {
+                addAll(armorContents.filterNotNull().filterNot { it.type == Material.AIR })
+                addAll(storageContents.filterNotNull().filterNot { it.type == Material.AIR })
+                addAll(extraContents.filterNotNull().filterNot { it.type == Material.AIR })
+            }
 
-        val experience = player.calculateTotalExperiencePoints()
+            val experience = player.calculateTotalExperiencePoints()
 
-        contents.forEach { item ->
-            location.world.dropItemNaturally(location, item)
-        }
+            player.inventory.clear()
+            player.level = 0
+            player.exp = 0F
 
-        location.world.spawnEntity(
-            location,
-            EntityType.EXPERIENCE_ORB,
-            CreatureSpawnEvent.SpawnReason.CUSTOM
-        ) { entity ->
-            require(entity is ExperienceOrb) { "Expected ExperienceOrb, got ${entity.type}" }
+            delay(1.ticks)
 
-            entity.experience = experience
+            withContext(CombatInstance.regionDispatcher(location)) {
+                contents.forEach { item ->
+                    location.world.dropItemNaturally(location, item)
+                }
+
+                location.world.spawnEntity(
+                    location,
+                    EntityType.EXPERIENCE_ORB,
+                    CreatureSpawnEvent.SpawnReason.CUSTOM
+                ) { entity ->
+                    require(entity is ExperienceOrb) { "Expected ExperienceOrb, got ${entity.type}" }
+
+                    entity.experience = experience
+                }
+            }
         }
     }
 
