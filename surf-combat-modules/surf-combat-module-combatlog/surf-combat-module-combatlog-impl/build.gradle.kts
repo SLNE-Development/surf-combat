@@ -1,6 +1,5 @@
-@file:Suppress("UNCHECKED_CAST")
-
 import dev.slne.surf.combat.gradle.CombatModule
+import dev.slne.surf.combat.gradle.CombatModuleScope
 import dev.slne.surf.combat.gradle.combatModule
 
 plugins {
@@ -9,9 +8,6 @@ plugins {
 }
 
 dependencies {
-    compileOnly(project(":surf-combat-api"))
-
-    CombatModule.entries.forEach { module ->
-        combatModule(module, module.implementationScope)
-    }
+    api(project(":surf-combat-api"))
+    combatModule(CombatModule.COMBATLOG, CombatModuleScope.API)
 }

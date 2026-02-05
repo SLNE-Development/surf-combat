@@ -4,37 +4,40 @@ import dev.slne.surf.combat.api.CombatInstance
 import dev.slne.surf.surfapi.bukkit.api.event.register
 import dev.slne.surf.surfapi.bukkit.api.event.unregister
 import dev.slne.surf.surfapi.core.api.util.logger
-import dev.slne.surf.surfapi.core.api.util.objectSetOf
-import it.unimi.dsi.fastutil.objects.ObjectSet
+import dev.slne.surf.surfapi.core.api.util.toObjectSet
 import kotlinx.coroutines.*
 import org.bukkit.event.Listener
 import kotlin.coroutines.CoroutineContext
 
 abstract class CombatModule(
     val name: String,
-    val events: ObjectSet<Listener> = objectSetOf()
+    vararg listeners: Listener
 ) {
     private val log = logger()
-    val moduleScope = CoroutineScope(
-        CombatInstance.pluginScope.coroutineContext + CoroutineName("CombatModule-$name") + CoroutineExceptionHandler { context, throwable ->
-            log.atSevere()
-                .withCause(throwable)
-                .log("Exception in coroutine ${context[CoroutineName]} of module $name")
-        }
-    )
+    private val listeners = listeners.toObjectSet()
+
+    val moduleScope by lazy {
+        CoroutineScope(
+            CombatInstance.pluginScope.coroutineContext + CoroutineName("CombatModule-$name") + CoroutineExceptionHandler { context, throwable ->
+                log.atSevere()
+                    .withCause(throwable)
+                    .log("Exception in coroutine ${context[CoroutineName]} of module $name")
+            }
+        )
+    }
 
     suspend fun internalOnLoad() {
-        events.forEach(Listener::register)
         onLoad()
     }
 
     suspend fun internalOnEnable() {
+        listeners.forEach(Listener::register)
         onEnable()
     }
 
     suspend fun internalOnDisable() {
         moduleScope.cancel("Module $name is being disabled")
-        events.forEach(Listener::unregister)
+        listeners.forEach(Listener::unregister)
         onDisable()
     }
 

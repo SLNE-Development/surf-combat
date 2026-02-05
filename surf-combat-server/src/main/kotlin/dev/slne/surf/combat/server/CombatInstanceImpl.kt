@@ -9,7 +9,9 @@ import dev.slne.surf.surfapi.bukkit.api.event.register
 
 @AutoService(CombatInstance::class)
 class CombatInstanceImpl : CombatInstance {
-    override val pluginScope = plugin.scope
+    override val pluginScope by lazy {
+        plugin.scope
+    }
     override val pluginManager = plugin.server.pluginManager
     override val pluginInstance = plugin
 
@@ -17,12 +19,12 @@ class CombatInstanceImpl : CombatInstance {
 
     override suspend fun onLoad() {
         moduleLoader.onLoad()
-
-        OnlineListener.register()
     }
 
     override suspend fun onEnable() {
         moduleLoader.onEnable()
+
+        OnlineListener.register()
     }
 
     override suspend fun onDisable() {

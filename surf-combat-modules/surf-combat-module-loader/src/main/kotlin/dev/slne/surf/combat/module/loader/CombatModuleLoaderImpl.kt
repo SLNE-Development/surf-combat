@@ -4,6 +4,7 @@ import com.google.auto.service.AutoService
 import dev.slne.surf.combat.api.module.CombatModule
 import dev.slne.surf.combat.api.module.CombatModuleLoader
 import dev.slne.surf.combat.module.combatlog.ModuleCombatLog
+import dev.slne.surf.combat.module.combo.ModuleCombo
 import dev.slne.surf.surfapi.core.api.util.freeze
 import dev.slne.surf.surfapi.core.api.util.logger
 import dev.slne.surf.surfapi.core.api.util.mutableObjectSetOf
@@ -22,6 +23,7 @@ object CombatModuleLoaderImpl : CombatModuleLoader {
 
     private fun registerModules() {
         _availableModules.add(ModuleCombatLog)
+        _availableModules.add(ModuleCombo)
     }
 
     override suspend fun onLoad() {
@@ -30,7 +32,7 @@ object CombatModuleLoaderImpl : CombatModuleLoader {
         availableModules.forEach { module ->
             try {
                 module.internalOnLoad()
-                loadedModules.add(module)
+                _loadedModules.add(module)
             } catch (e: Exception) {
                 log.atSevere()
                     .withCause(e)
@@ -44,7 +46,7 @@ object CombatModuleLoaderImpl : CombatModuleLoader {
         loadedModules.forEach { module ->
             try {
                 module.internalOnEnable()
-                enabledModules.add(module)
+                _enabledModules.add(module)
             } catch (e: Exception) {
                 log.atSevere()
                     .withCause(e)
