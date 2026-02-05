@@ -11,13 +11,19 @@ data class ComboImpl(
     override val user: CombatUser,
     override val target: CombatUser,
     override var count: Int = 0,
-    override var latest: OffsetDateTime = OffsetDateTime.now()
+    override var criticalCount: Int = 0,
+    override var latest: OffsetDateTime = OffsetDateTime.now(),
 ) : Combo {
     override val isExpired: Boolean
         get() = OffsetDateTime.now().isAfter(latest.plus(ModuleCombo.COMBO_EXPIRY.toJavaDuration()))
 
-    override fun increment(amount: Int) {
+    override fun increment(amount: Int, critical: Boolean) {
         count += amount
+        
+        if (critical) {
+            criticalCount += 1
+        }
+
         latest = OffsetDateTime.now()
 
         publish()

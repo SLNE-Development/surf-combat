@@ -10,6 +10,7 @@ class PlayerComboExpiredEvent(val combo: Combo) : CombatEvent() {
     val user: CombatUser by combo::user
     val target: CombatUser by combo::target
     val count: Int by combo::count
+    val criticalCount: Int by combo::criticalCount
     val latest: OffsetDateTime by combo::latest
 
     override fun getHandlers() = HANDLER_LIST
