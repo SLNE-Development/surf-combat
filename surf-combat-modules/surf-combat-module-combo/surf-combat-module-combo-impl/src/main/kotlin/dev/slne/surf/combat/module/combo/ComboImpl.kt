@@ -16,6 +16,7 @@ import org.bukkit.Location
 import org.bukkit.entity.Display
 import org.spongepowered.math.vector.Vector3f
 import java.time.OffsetDateTime
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
@@ -80,7 +81,7 @@ data class ComboImpl(
         }
     }
 
-    fun sendComboExpiryDisplay() = sendAndRemoveDisplay(2.0) {
+    fun sendComboExpiryDisplay() = sendAndRemoveDisplay(2.0, 3.seconds) {
         error("X")
         spacer(" - ")
         error("$count")
@@ -94,6 +95,7 @@ data class ComboImpl(
     @OptIn(NmsUseWithCaution::class)
     private fun sendDisplay(
         sizeModifier: Double = 1.0,
+        expiry: Duration = 1.seconds,
         content: SurfComponentBuilder.() -> Unit
     ): Int {
         val entityId = random.nextInt()
@@ -108,8 +110,9 @@ data class ComboImpl(
         val targetLocation = targetPlayer.location.clone()
 
         val direction = targetLocation.toVector().subtract(playerLocation.toVector()).normalize()
-        val offsetDistance = 2.5
-        val yOffset = 2.0
+        val offsetDistance = 2.0
+        val yOffset = 1.0
+
         val displayPosition = targetLocation.toVector().add(direction.multiply(offsetDistance))
 
         val location = Location(
@@ -124,7 +127,6 @@ data class ComboImpl(
             position = location
         ) {
             val size = 0.5f * sizeModifier
-
             scale = Vector3f(size, size, size)
             billboardConstraints = Display.Billboard.VERTICAL
             text = SurfComponentBuilder.builder().apply(content).build()
@@ -132,8 +134,8 @@ data class ComboImpl(
 
         spawnPacket.execute(bukkitPlayer)
 
-        _displayIds[entityId] = OffsetDateTime.now()
-
+        _displayIds[entityId] = OffsetDateTime.now().plus(expiry.toJavaDuration())
+        
         return entityId
     }
 
@@ -145,18 +147,15 @@ data class ComboImpl(
         nmsSpawnPackets.despawn(entityId).execute(bukkitPlayer)
     }
 
-    private val DISPLAY_EXPIRY = 1.seconds
-
     override fun clearExpiredDisplays() {
         val now = OffsetDateTime.now()
         val iterator = _displayIds.iterator()
 
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            val displayTime = entry.value
-            val difference = java.time.Duration.between(now, displayTime)
+            val expirationTime = entry.value
 
-            if (difference.abs() >= DISPLAY_EXPIRY.toJavaDuration()) {
+            if (now.isAfter(expirationTime)) {
                 removeDisplay(entry.key)
 
                 iterator.remove()
@@ -167,10 +166,11 @@ data class ComboImpl(
     @Suppress("SameParameterValue")
     private fun sendAndRemoveDisplay(
         sizeModifier: Double = 1.0,
+        expiry: Duration = 1.seconds,
         content: SurfComponentBuilder.() -> Unit
     ) = CombatInstance.launch {
-        val entityId = sendDisplay(sizeModifier, content)
-        delay(DISPLAY_EXPIRY)
+        val entityId = sendDisplay(sizeModifier, expiry, content)
+        delay(expiry)
         removeDisplay(entityId)
     }
 }
