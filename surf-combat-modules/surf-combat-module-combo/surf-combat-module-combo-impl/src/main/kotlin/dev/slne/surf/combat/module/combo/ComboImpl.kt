@@ -81,7 +81,7 @@ data class ComboImpl(
         }
     }
 
-    fun sendComboExpiryDisplay() = sendAndRemoveDisplay(2.0, 3.seconds) {
+    fun sendComboExpiryDisplay() = sendAndRemoveDisplay(2.0, 5.seconds) {
         error("X")
         spacer(" - ")
         error("$count")
@@ -95,7 +95,7 @@ data class ComboImpl(
     @OptIn(NmsUseWithCaution::class)
     private fun sendDisplay(
         sizeModifier: Double = 1.0,
-        expiry: Duration = 1.seconds,
+        expiry: Duration = 3.seconds,
         content: SurfComponentBuilder.() -> Unit
     ): Int {
         val entityId = random.nextInt()
@@ -135,7 +135,7 @@ data class ComboImpl(
         spawnPacket.execute(bukkitPlayer)
 
         _displayIds[entityId] = OffsetDateTime.now().plus(expiry.toJavaDuration())
-        
+
         return entityId
     }
 
