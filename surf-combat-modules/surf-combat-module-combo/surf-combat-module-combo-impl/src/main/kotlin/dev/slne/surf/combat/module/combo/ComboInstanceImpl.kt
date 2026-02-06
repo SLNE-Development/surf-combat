@@ -23,6 +23,16 @@ class ComboInstanceImpl : ComboInstance {
         return createdCombo
     }
 
+    override fun clearExpiredComboDisplays() {
+        val iterator = _combos.iterator()
+
+        while (iterator.hasNext()) {
+            val combo = iterator.next()
+
+            combo.clearExpiredDisplays()
+        }
+    }
+
     override fun clearExpiredCombos() {
         val iterator = _combos.iterator()
 
@@ -30,7 +40,7 @@ class ComboInstanceImpl : ComboInstance {
             val combo = iterator.next()
 
             if (combo.isExpired) {
-                combo.publishExpiry()
+                combo.expire()
                 iterator.remove()
             }
         }

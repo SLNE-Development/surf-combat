@@ -11,6 +11,8 @@ interface ComboInstance {
     val combos: @Unmodifiable ObjectList<out Combo>
 
     fun clearExpiredCombos()
+    fun clearExpiredComboDisplays()
+    
     fun findOrCreateCombo(user: CombatUser, target: CombatUser): Combo
 
     companion object : ComboInstance by instance {

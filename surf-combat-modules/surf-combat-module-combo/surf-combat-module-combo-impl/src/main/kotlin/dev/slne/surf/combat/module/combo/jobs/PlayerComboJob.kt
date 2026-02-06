@@ -6,6 +6,7 @@ import dev.slne.surf.combat.module.combo.ModuleCombo
 
 object PlayerComboJob : CombatJob(ModuleCombo.moduleScope, ModuleCombo.COMBO_EXPIRY) {
     override fun tick() {
+        ComboInstance.clearExpiredComboDisplays()
         ComboInstance.clearExpiredCombos()
     }
 }
