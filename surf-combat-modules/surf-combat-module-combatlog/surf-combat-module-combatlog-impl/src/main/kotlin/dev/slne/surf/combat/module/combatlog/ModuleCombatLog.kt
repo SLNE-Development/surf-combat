@@ -11,7 +11,7 @@ object ModuleCombatLog : CombatModule(
     DamageListener,
     OnlineListener
 ) {
-    val COMBAT_TIME = 10.seconds
+    val COMBAT_TIME = 11.seconds
 
     override suspend fun onEnable() {
         CombatLogJob.start()

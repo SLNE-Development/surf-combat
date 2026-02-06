@@ -5,6 +5,7 @@ import dev.slne.surf.combat.api.user.CombatUserManager
 import dev.slne.surf.combat.module.combatlog.ModuleCombatLog
 import dev.slne.surf.combat.module.combatlog.user.combatLog
 import dev.slne.surf.surfapi.core.api.messages.adventure.buildText
+import net.kyori.adventure.text.format.TextDecoration
 import kotlin.time.Duration.Companion.seconds
 
 object CombatLogJob : CombatJob(
@@ -16,10 +17,18 @@ object CombatLogJob : CombatJob(
             val combatLog = user.combatLog
 
             combatLog.removeInactiveLogs()
-            val remainingSeconds = combatLog.remainingDuration ?: return@forEach
 
-            user.bukkitPlayer?.sendActionBar(buildText {
-                variableValue(remainingSeconds.toSeconds())
+            val remainingSeconds = combatLog.remainingDuration?.toSeconds()
+                ?: return@forEach
+
+            val player = user.bukkitPlayer ?: return@forEach
+
+            player.sendActionBar(buildText {
+                error("⚔")
+                appendSpace()
+                error("Kampf", TextDecoration.BOLD)
+                spacer(" - ")
+                variableValue(remainingSeconds.toString().padStart(2, '0'))
             })
         }
     }

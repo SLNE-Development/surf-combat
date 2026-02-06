@@ -18,25 +18,6 @@ import org.bukkit.event.entity.PlayerDeathEvent
 
 object DamageListener : Listener {
     @EventHandler
-    fun onPlayerDamageByPlayer(event: PlayerDamageEvent) {
-        val damagee = event.player
-        val damageeUser = damagee.combatUser
-
-        val damager = event.damageEntity as? Player ?: return
-        val damagerUser = damager.combatUser
-
-        val event = PlayerCombatStartEvent(
-            player = damageeUser,
-            target = damagerUser
-        )
-
-        if (event.callEvent()) {
-            damageeUser.combatLog.startCombatWith(damagerUser)
-            damagerUser.combatLog.startCombatWith(damageeUser)
-        }
-    }
-
-    @EventHandler
     fun onEntityDamage(event: EntityDamageEvent) {
         val player = event.entity as? Player ?: return
         val lastEntityDamageEvent = player.lastDamageCause
@@ -59,6 +40,20 @@ object DamageListener : Listener {
 
         if (!extendedDamageEvent.callEvent()) {
             event.cancel()
+            return
+        }
+
+        val damageeUser = player.combatUser
+        val damagerUser = (damageEntity as? Player)?.combatUser ?: return
+
+        val event = PlayerCombatStartEvent(
+            player = damageeUser,
+            target = damagerUser
+        )
+
+        if (event.callEvent()) {
+            damageeUser.combatLog.startCombatWith(damagerUser)
+            damagerUser.combatLog.startCombatWith(damageeUser)
         }
     }
 
