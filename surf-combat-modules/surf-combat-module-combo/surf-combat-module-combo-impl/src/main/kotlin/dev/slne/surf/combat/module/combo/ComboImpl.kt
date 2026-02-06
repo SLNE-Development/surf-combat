@@ -1,37 +1,32 @@
 package dev.slne.surf.combat.module.combo
 
-import dev.slne.surf.combat.api.CombatInstance
 import dev.slne.surf.combat.api.user.CombatUser
+import dev.slne.surf.combat.module.combo.Combo.Companion.COMBO_EXPIRY
+import dev.slne.surf.combat.module.combo.Combo.Companion.COMBO_SHOWCASE_AFTER
 import dev.slne.surf.combat.module.combo.events.PlayerComboEvent
 import dev.slne.surf.combat.module.combo.events.PlayerComboExpiredEvent
 import dev.slne.surf.surfapi.bukkit.api.extensions.pluginManager
-import dev.slne.surf.surfapi.bukkit.api.nms.NmsUseWithCaution
-import dev.slne.surf.surfapi.bukkit.api.nms.bridges.packets.entity.nmsSpawnPackets
-import dev.slne.surf.surfapi.core.api.messages.builder.SurfComponentBuilder
-import dev.slne.surf.surfapi.core.api.util.freeze
-import dev.slne.surf.surfapi.core.api.util.mutableInt2ObjectMapOf
-import dev.slne.surf.surfapi.core.api.util.random
-import kotlinx.coroutines.delay
-import org.bukkit.Location
-import org.bukkit.entity.Display
-import org.spongepowered.math.vector.Vector3f
+import dev.slne.surf.surfapi.core.api.messages.Colors
+import dev.slne.surf.surfapi.core.api.messages.adventure.playSound
+import dev.slne.surf.surfapi.core.api.messages.adventure.showTitle
+import net.kyori.adventure.sound.Sound
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextColor
 import java.time.OffsetDateTime
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
+import org.bukkit.Sound as BukkitSound
 
 data class ComboImpl(
     override val user: CombatUser,
     override val target: CombatUser,
     override var count: Int = 0,
     override var criticalCount: Int = 0,
-    override var latest: OffsetDateTime = OffsetDateTime.now(),
+    override var expiry: OffsetDateTime = OffsetDateTime.now().plus(COMBO_EXPIRY.toJavaDuration()),
 ) : Combo {
-    private val _displayIds = mutableInt2ObjectMapOf<OffsetDateTime>()
-    override val displayIds = _displayIds.freeze()
-
     override val isExpired: Boolean
-        get() = OffsetDateTime.now().isAfter(latest.plus(ModuleCombo.COMBO_EXPIRY.toJavaDuration()))
+        get() = OffsetDateTime.now().isAfter(expiry)
 
     override fun increment(amount: Int, critical: Boolean) {
         count += amount
@@ -40,26 +35,17 @@ data class ComboImpl(
             criticalCount += 1
         }
 
-        latest = OffsetDateTime.now()
+        expiry = OffsetDateTime.now().plus(COMBO_EXPIRY.toJavaDuration())
 
         publish()
+
+        if (count >= COMBO_SHOWCASE_AFTER) {
+            sendComboDisplay()
+        }
     }
 
     override fun expire() {
         publishExpiry()
-
-        // Remove all active displays
-        val iterator = _displayIds.iterator()
-
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            val entityId = entry.key
-
-            removeDisplay(entityId)
-
-            iterator.remove()
-        }
-
         sendComboExpiryDisplay()
     }
 
@@ -71,106 +57,50 @@ data class ComboImpl(
         pluginManager.callEvent(PlayerComboExpiredEvent(this))
     }
 
-    override fun sendComboDisplay() = sendDisplay {
-        warning("+")
-        spacer(" - ")
-        warning("$count")
+    private fun sendComboTitle(
+        color: TextColor,
+        stay: Duration,
+    ) {
+        val player = user.bukkitPlayer ?: return
 
-        if (criticalCount > 0) {
-            warning("($criticalCount)")
-        }
-    }
+        player.clearTitle()
 
-    fun sendComboExpiryDisplay() = sendAndRemoveDisplay(2.0, 5.seconds) {
-        error("X")
-        spacer(" - ")
-        error("$count")
-
-        if (criticalCount > 0) {
-            error("($criticalCount)")
-        }
-    }
-
-    @Suppress("UnstableApiUsage")
-    @OptIn(NmsUseWithCaution::class)
-    private fun sendDisplay(
-        sizeModifier: Double = 1.0,
-        expiry: Duration = 3.seconds,
-        content: SurfComponentBuilder.() -> Unit
-    ): Int {
-        val entityId = random.nextInt()
-
-        val bukkitPlayer = user.bukkitPlayer
-            ?: throw IllegalStateException("User must be online to send combo display")
-
-        val targetPlayer = target.bukkitPlayer
-            ?: throw IllegalStateException("Target user must be online to send combo display")
-
-        val playerLocation = bukkitPlayer.location.clone()
-        val targetLocation = targetPlayer.location.clone()
-
-        val direction = targetLocation.toVector().subtract(playerLocation.toVector()).normalize()
-        val offsetDistance = 2.0
-        val yOffset = 1.0
-
-        val displayPosition = targetLocation.toVector().add(direction.multiply(offsetDistance))
-
-        val location = Location(
-            bukkitPlayer.world,
-            displayPosition.x,
-            displayPosition.y + yOffset,
-            displayPosition.z
-        )
-
-        val spawnPacket = nmsSpawnPackets.spawnTextDisplay(
-            entityId = entityId,
-            position = location
-        ) {
-            val size = 0.5f * sizeModifier
-            scale = Vector3f(size, size, size)
-            billboardConstraints = Display.Billboard.VERTICAL
-            text = SurfComponentBuilder.builder().apply(content).build()
-        }
-
-        spawnPacket.execute(bukkitPlayer)
-
-        _displayIds[entityId] = OffsetDateTime.now().plus(expiry.toJavaDuration())
-
-        return entityId
-    }
-
-    @OptIn(NmsUseWithCaution::class)
-    private fun removeDisplay(entityId: Int) {
-        val bukkitPlayer = user.bukkitPlayer
-            ?: throw IllegalStateException("User must be online to remove combo display")
-
-        nmsSpawnPackets.despawn(entityId).execute(bukkitPlayer)
-    }
-
-    override fun clearExpiredDisplays() {
-        val now = OffsetDateTime.now()
-        val iterator = _displayIds.iterator()
-
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            val expirationTime = entry.value
-
-            if (now.isAfter(expirationTime)) {
-                removeDisplay(entry.key)
-
-                iterator.remove()
+        player.showTitle {
+            title = Component.empty()
+            subtitle {
+                text("💢", color)
+                spacer(" - ")
+                text("$count", color)
+                if (criticalCount > 0) {
+                    appendSpace()
+                    text("(🗡 $criticalCount)", color)
+                }
+            }
+            times {
+                fadeIn(0)
+                stay(stay)
+                fadeOut(0)
             }
         }
     }
 
-    @Suppress("SameParameterValue")
-    private fun sendAndRemoveDisplay(
-        sizeModifier: Double = 1.0,
-        expiry: Duration = 1.seconds,
-        content: SurfComponentBuilder.() -> Unit
-    ) = CombatInstance.launch {
-        val entityId = sendDisplay(sizeModifier, expiry, content)
-        delay(expiry)
-        removeDisplay(entityId)
+    override fun sendComboDisplay() {
+        sendComboTitle(Colors.INFO, COMBO_EXPIRY.plus(1.seconds))
+
+        user.bukkitPlayer?.playSound {
+            type(BukkitSound.ENTITY_EXPERIENCE_ORB_PICKUP)
+            volume(.25f)
+            source(Sound.Source.PLAYER)
+        }
+    }
+
+    override fun sendComboExpiryDisplay() {
+        sendComboTitle(Colors.ERROR, COMBO_EXPIRY)
+
+        user.bukkitPlayer?.playSound {
+            type(BukkitSound.ENTITY_VILLAGER_HURT)
+            volume(.5f)
+            source(Sound.Source.PLAYER)
+        }
     }
 }

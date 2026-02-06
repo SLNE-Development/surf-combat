@@ -1,9 +1,8 @@
 package dev.slne.surf.combat.module.combo
 
 import dev.slne.surf.combat.api.user.CombatUser
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap
-import org.jetbrains.annotations.Unmodifiable
 import java.time.OffsetDateTime
+import kotlin.time.Duration.Companion.seconds
 
 interface Combo {
     val user: CombatUser
@@ -12,10 +11,8 @@ interface Combo {
     val count: Int
     val criticalCount: Int
 
-    val latest: OffsetDateTime
+    val expiry: OffsetDateTime
     val isExpired: Boolean
-
-    val displayIds: @Unmodifiable Int2ObjectMap<OffsetDateTime>
 
     fun increment(amount: Int = 1, critical: Boolean = false)
 
@@ -23,6 +20,11 @@ interface Combo {
     fun publish()
     fun publishExpiry()
 
-    fun sendComboDisplay(): Int
-    fun clearExpiredDisplays()
+    fun sendComboDisplay()
+    fun sendComboExpiryDisplay()
+
+    companion object {
+        val COMBO_EXPIRY = 5.seconds
+        const val COMBO_SHOWCASE_AFTER = 3
+    }
 }
